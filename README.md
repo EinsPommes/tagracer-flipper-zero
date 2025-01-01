@@ -1,126 +1,195 @@
-# TagRacer - Multiplayer NFC Game for Flipper Zero
+# TagRacer für Flipper Zero
 
-TagRacer is an exciting multiplayer NFC tag scanning game for the Flipper Zero device. Race against other players to scan NFC tags and score points in real-time!
+Ein hochoptimiertes NFC-basiertes Rennspiel für den Flipper Zero. Scanne Tags, sammle Punkte und fordere deine Freunde heraus!
 
-## 🎮 Game Components
+## 1. Spielmodi & Features
 
-### Flipper Zero App
-- Real-time NFC tag scanning
-- Live score updates
-- Game timer with notifications
-- Anti-cheat mechanisms
-- Seamless server communication
+### 1.1 Story Mode
+- Mehrere Kapitel mit einzigartigen Herausforderungen
+- Freischaltbare Charaktere und Fähigkeiten
+- Fortschrittssystem mit Speicherpunkten
+- Offline-Speicherung des Fortschritts
 
-### Bridge Software
-- Connects Flipper Zero to server
-- Serial communication handling
-- WebSocket support for real-time updates
-- Automatic reconnection
-- Message queue system
+### 1.2 Training Mode
+- Detaillierte Leistungsanalyse
+- Anpassbare Trainingsziele
+- Routenoptimierung
+- Performance-Tracking
 
-### Server Backend
-- Flask + Flask-SocketIO
-- RESTful API endpoints
-- SQLite database with SQLAlchemy
-- Real-time game state management
-- Score tracking and validation
+### 1.3 Challenge Mode
+- Tägliche Herausforderungen
+- Wöchentliche Events
+- Saisonale Spezial-Events
+- Ranglisten-System
 
-### Web Interface
-- Vue.js frontend
-- Live scoreboard
-- Real-time activity feed
-- Statistics and heatmaps
-- Achievement system
+### 1.4 Multiplayer
+- Lokaler P2P-Modus
+- Team-Rennen
+- Zeitrennen
+- Custom-Regeln
 
-## 🚀 Getting Started
+## 2. Technische Features
 
-### Prerequisites
-- Flipper Zero device
-- Python 3.8+
-- Node.js 14+
-- USB connection for bridge software
+### 2.1 Performance-Optimierungen
+- **Bewegungsvorhersage**
+  - KI-basierte Positionsvorhersage
+  - Geschwindigkeitsoptimierung
+  - Richtungsberechnung
+  - Konfidenzwerte
 
-### Installation
+- **Cache-System**
+  - LRU-Cache für Tags
+  - Prefetching-Algorithmus
+  - Adaptive Cache-Größe
+  - Cache-Statistiken
 
-1. **Flipper Zero App**
+- **Speichermanagement**
+  - Komprimierte Datenspeicherung
+  - Chunk-basiertes Laden
+  - Automatische Bereinigung
+  - Memory-Pooling
+
+### 2.2 Daten-Pipeline
+- **Batch-Verarbeitung**
+  - Priorisierte Updates
+  - Automatische Komprimierung
+  - Fehlerbehandlung
+  - Retry-Mechanismus
+
+- **Filter-System**
+  - Zeitbasierte Filter
+  - Prioritätsfilter
+  - Größenfilter
+  - Custom-Filter
+
+- **Statistik-System**
+  - Performance-Metriken
+  - Fehlerüberwachung
+  - Cache-Statistiken
+  - Netzwerk-Analyse
+
+### 2.3 Server-Integration
+- **Synchronisation**
+  - Automatische Updates
+  - Konfliktauflösung
+  - Delta-Updates
+  - Offline-Modus
+
+- **API-System**
+  - RESTful API
+  - WebSocket-Support
+  - Batch-Operationen
+  - Rate-Limiting
+
+## 3. Entwicklung
+
+### 3.1 Setup
+1. **Entwicklungsumgebung**
 ```bash
-# Clone to your Flipper Zero apps folder
-git clone https://github.com/yourusername/tagracer-flipper-zero.git
-cd flipper-tagracer
+# Repository klonen
+git clone https://github.com/EinsPommes/tagracer-flipper-zero.git
 
-# Build using fbt
-./fbt
+# Abhängigkeiten installieren
+cd tagracer-flipper-zero
+./fbt resources
+
+# Development-Umgebung einrichten
+./fbt env
 ```
 
-2. **Bridge Software**
+2. **Build-Prozess**
 ```bash
-cd bridge
-pip install -r requirements.txt
-python main.py
+# Debug-Build
+./fbt debug
+
+# Release-Build
+./fbt release
+
+# Tests ausführen
+./fbt test
 ```
 
-3. **Server**
+3. **Deployment**
 ```bash
-cd server
-pip install -r requirements.txt
-python app.py
+# Auf Flipper Zero installieren
+./fbt launch
+
+# Package erstellen
+./fbt package
 ```
 
-4. **Web Interface**
+### 3.2 Code-Struktur
+```
+/tagracer-flipper-zero
+├── flipper_http/           # Core-Spiellogik
+│   ├── game/              # Spielmechaniken
+│   ├── network/           # Netzwerk-Stack
+│   ├── storage/           # Datenspeicherung
+│   └── ui/                # Benutzeroberfläche
+├── server/                # Server-Komponenten
+│   ├── api/              # REST API
+│   ├── websocket/        # WebSocket-Server
+│   └── database/         # Datenbank-Layer
+├── assets/               # Ressourcen
+│   ├── graphics/        # Grafiken
+│   ├── sounds/          # Sound-Effekte
+│   └── maps/            # Karten-Daten
+└── docs/                # Dokumentation
+```
+
+### 3.3 Performance-Optimierung
+1. **Profiling**
 ```bash
-cd web
-npm install
-npm run dev
+# CPU-Profiling
+./fbt profile cpu
+
+# Memory-Profiling
+./fbt profile memory
+
+# Network-Profiling
+./fbt profile network
 ```
 
-## 🎯 How to Play
+2. **Benchmarking**
+```bash
+# Performance-Tests
+./fbt benchmark
 
-1. Start the bridge software and server
-2. Launch TagRacer on your Flipper Zero
-3. Press OK to start a new game
-4. Find and scan NFC tags within the time limit
-5. Watch your score update in real-time
-6. Compete for the highest score!
+# Stress-Tests
+./fbt stress-test
 
-## 🏆 Features
-
-- **Real-time Multiplayer**: Compete with others in real-time
-- **Anti-Cheat System**: Prevents tag scanning abuse
-- **Achievement System**: Unlock achievements as you play
-- **Statistics**: Track your progress and view heatmaps
-- **Live Updates**: See scores and activity in real-time
-- **Cross-Platform**: Web interface works on any device
-
-## 🛠️ Development
-
-### Project Structure
-```
-tagracer-flipper-zero/
-├── application/       # Flipper Zero application
-├── bridge/           # Bridge software
-├── server/           # Backend server
-└── web/             # Web interface
+# Load-Tests
+./fbt load-test
 ```
 
-### Contributing
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. **Debugging**
+```bash
+# Debug-Logging aktivieren
+./fbt debug log
 
-## 📝 License
+# Memory-Leaks prüfen
+./fbt debug memory
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+# Network-Debugging
+./fbt debug network
+```
 
-## 🙏 Acknowledgments
+### 3.4 Best Practices
+- Clean Code-Prinzipien
+- Modulares Design
+- Automatische Tests
+- Kontinuierliche Integration
 
-- Flipper Zero team for the amazing platform
-- All contributors and players
-- The open-source community
+## Lizenz & Kontakt
 
-## 📧 Contact
+### Lizenz
+Dieses Projekt ist unter der MIT-Lizenz lizenziert - siehe [LICENSE](LICENSE) für Details.
 
-Your Name - [@yourusername](https://twitter.com/yourusername)
+### Kontakt
+- **GitHub**: [EinsPommes](https://github.com/EinsPommes)
+- **Email**: jannikkugler2006@web.de
 
-Project Link: [https://github.com/yourusername/tagracer-flipper-zero](https://github.com/yourusername/tagracer-flipper-zero)
+### Support
+- Issue Tracker: [GitHub Issues](https://github.com/EinsPommes/tagracer-flipper-zero/issues)
+- Discussions: [GitHub Discussions](https://github.com/EinsPommes/tagracer-flipper-zero/discussions)
+- Wiki: [GitHub Wiki](https://github.com/EinsPommes/tagracer-flipper-zero/wiki)

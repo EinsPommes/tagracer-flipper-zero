@@ -1,112 +1,197 @@
 #include "flipper_http.h"
 #include <furi_hal_uart.h>
 #include <string.h>
+#include <stdlib.h>
 
-#define UART_CH UART_CH_1
-#define BUFFER_SIZE 1024
+#define HTTP_BUFFER_SIZE 2048
+#define JSON_BUFFER_SIZE 512
 
 struct FlipperHTTP {
-    FuriThread* rx_thread;
-    uint8_t rx_buffer[BUFFER_SIZE];
-    size_t rx_buffer_pos;
-    FuriMutex* mutex;
+    FuriThread* worker_thread;
+    FuriStreamBuffer* rx_stream;
+    FuriStreamBuffer* tx_stream;
+    FlipperHTTPRequest* current_request;
+    bool is_running;
+    bool request_pending;
 };
 
-static void uart_on_irq_cb(UartIrqEvent event, uint8_t data, void* context) {
-    FlipperHTTP* http = context;
-    
-    if(event == UartIrqEventRXNE) {
-        if(http->rx_buffer_pos < BUFFER_SIZE - 1) {
-            http->rx_buffer[http->rx_buffer_pos++] = data;
-        }
-    }
-}
+typedef struct {
+    FlipperHTTP* http;
+    FlipperHTTPRequest request;
+} WorkerContext;
 
-static int32_t uart_worker(void* context) {
-    FlipperHTTP* http = context;
+// Worker Thread
+static int32_t http_worker(void* context) {
+    WorkerContext* worker_ctx = context;
+    FlipperHTTP* http = worker_ctx->http;
+    uint8_t rx_buffer[HTTP_BUFFER_SIZE];
+    size_t rx_len;
     
-    while(1) {
-        furi_delay_ms(100);
-        
-        if(http->rx_buffer_pos > 0) {
-            furi_mutex_acquire(http->mutex, FuriWaitForever);
+    while(http->is_running) {
+        if(http->request_pending) {
+            // Request senden
+            const char* method = worker_ctx->request.method;
+            const char* url = worker_ctx->request.url;
+            const char* body = worker_ctx->request.body;
             
-            // Parse response
-            FlipperHTTPResponse response = {0};
-            char* status_line = strtok((char*)http->rx_buffer, "\r\n");
-            if(status_line) {
-                sscanf(status_line, "HTTP/1.1 %d", &response.status_code);
-                response.body = strstr((char*)http->rx_buffer, "\r\n\r\n");
-                if(response.body) {
-                    response.body += 4; // Skip \r\n\r\n
+            // HTTP Request formatieren
+            char request_buffer[HTTP_BUFFER_SIZE];
+            snprintf(request_buffer, sizeof(request_buffer),
+                    "%s %s HTTP/1.1\r\n"
+                    "Host: localhost\r\n"
+                    "Content-Type: application/json\r\n"
+                    "Content-Length: %d\r\n"
+                    "\r\n"
+                    "%s",
+                    method, url,
+                    body ? strlen(body) : 0,
+                    body ? body : "");
+            
+            // Request über UART senden
+            furi_stream_buffer_send(
+                http->tx_stream,
+                request_buffer,
+                strlen(request_buffer),
+                FuriWaitForever);
+            
+            // Auf Antwort warten
+            rx_len = furi_stream_buffer_receive(
+                http->rx_stream,
+                rx_buffer,
+                sizeof(rx_buffer),
+                1000);
+            
+            if(rx_len > 0) {
+                // Response parsen
+                FlipperHTTPResponse response = {0};
+                char* status_line = strtok((char*)rx_buffer, "\r\n");
+                if(status_line) {
+                    char* status_code_str = strchr(status_line, ' ');
+                    if(status_code_str) {
+                        response.status_code = atoi(status_code_str + 1);
+                    }
+                }
+                
+                // Body finden
+                char* body_start = strstr((char*)rx_buffer, "\r\n\r\n");
+                if(body_start) {
+                    body_start += 4;
+                    response.body = body_start;
+                    response.body_size = rx_len - (body_start - (char*)rx_buffer);
+                }
+                
+                // Callback aufrufen
+                if(worker_ctx->request.callback) {
+                    worker_ctx->request.callback(&response, worker_ctx->request.context);
                 }
             }
             
-            // Clear buffer
-            memset(http->rx_buffer, 0, BUFFER_SIZE);
-            http->rx_buffer_pos = 0;
-            
-            furi_mutex_release(http->mutex);
+            http->request_pending = false;
         }
+        
+        furi_delay_ms(10);
     }
     
+    free(worker_ctx);
     return 0;
 }
 
+// Öffentliche Funktionen
 FlipperHTTP* flipper_http_alloc() {
     FlipperHTTP* http = malloc(sizeof(FlipperHTTP));
-    http->mutex = furi_mutex_alloc(FuriMutexTypeNormal);
-    http->rx_buffer_pos = 0;
+    http->rx_stream = furi_stream_buffer_alloc(HTTP_BUFFER_SIZE);
+    http->tx_stream = furi_stream_buffer_alloc(HTTP_BUFFER_SIZE);
+    http->is_running = false;
+    http->request_pending = false;
     return http;
 }
 
 void flipper_http_free(FlipperHTTP* http) {
-    furi_assert(http);
-    furi_mutex_free(http->mutex);
+    if(http->is_running) {
+        flipper_http_deinit(http);
+    }
+    furi_stream_buffer_free(http->rx_stream);
+    furi_stream_buffer_free(http->tx_stream);
     free(http);
 }
 
 bool flipper_http_init(FlipperHTTP* http) {
-    furi_assert(http);
+    if(http->is_running) {
+        return false;
+    }
     
-    // UART initialisieren
-    furi_hal_uart_init(UART_CH, 115200);
-    furi_hal_uart_set_irq_cb(UART_CH, uart_on_irq_cb, http);
+    // Worker Thread erstellen
+    WorkerContext* worker_ctx = malloc(sizeof(WorkerContext));
+    worker_ctx->http = http;
     
-    // RX Thread starten
-    http->rx_thread = furi_thread_alloc();
-    furi_thread_set_name(http->rx_thread, "HTTPRxWorker");
-    furi_thread_set_stack_size(http->rx_thread, 1024);
-    furi_thread_set_context(http->rx_thread, http);
-    furi_thread_set_callback(http->rx_thread, uart_worker);
-    furi_thread_start(http->rx_thread);
+    http->worker_thread = furi_thread_alloc();
+    furi_thread_set_name(http->worker_thread, "HTTPWorker");
+    furi_thread_set_stack_size(http->worker_thread, 2048);
+    furi_thread_set_context(http->worker_thread, worker_ctx);
+    furi_thread_set_callback(http->worker_thread, http_worker);
+    
+    http->is_running = true;
+    furi_thread_start(http->worker_thread);
     
     return true;
 }
 
 void flipper_http_deinit(FlipperHTTP* http) {
-    furi_assert(http);
+    if(!http->is_running) {
+        return;
+    }
     
-    furi_thread_free(http->rx_thread);
-    furi_hal_uart_deinit(UART_CH);
+    http->is_running = false;
+    furi_thread_join(http->worker_thread);
+    furi_thread_free(http->worker_thread);
 }
 
-void flipper_http_send_request(FlipperHTTP* http, FlipperHTTPRequest* request) {
-    furi_assert(http);
-    furi_assert(request);
+bool flipper_http_send_request(FlipperHTTP* http, FlipperHTTPRequest* request) {
+    if(!http->is_running || http->request_pending) {
+        return false;
+    }
     
-    char buffer[BUFFER_SIZE];
-    int len = snprintf(buffer, BUFFER_SIZE,
-        "%s %s HTTP/1.1\r\n"
-        "Host: localhost\r\n"
-        "Content-Type: application/json\r\n"
-        "Content-Length: %d\r\n"
-        "\r\n"
-        "%s",
-        request->method,
-        request->url,
-        strlen(request->body),
-        request->body);
+    WorkerContext* worker_ctx = furi_thread_get_context(http->worker_thread);
+    memcpy(&worker_ctx->request, request, sizeof(FlipperHTTPRequest));
+    http->request_pending = true;
     
-    furi_hal_uart_tx(UART_CH, (uint8_t*)buffer, len);
+    return true;
+}
+
+void flipper_http_cancel_request(FlipperHTTP* http) {
+    http->request_pending = false;
+}
+
+// JSON Hilfsfunktionen
+char* flipper_http_json_create_object() {
+    char* json = malloc(JSON_BUFFER_SIZE);
+    strcpy(json, "{");
+    return json;
+}
+
+void flipper_http_json_add_string(char* json, const char* key, const char* value) {
+    char buffer[JSON_BUFFER_SIZE];
+    snprintf(buffer, sizeof(buffer), "\"%s\":\"%s\",", key, value);
+    strcat(json, buffer);
+}
+
+void flipper_http_json_add_int(char* json, const char* key, int value) {
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "\"%s\":%d,", key, value);
+    strcat(json, buffer);
+}
+
+void flipper_http_json_add_bool(char* json, const char* key, bool value) {
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "\"%s\":%s,", key, value ? "true" : "false");
+    strcat(json, buffer);
+}
+
+void flipper_http_json_close_object(char* json) {
+    size_t len = strlen(json);
+    if(json[len-1] == ',') {
+        json[len-1] = '}';
+    } else {
+        strcat(json, "}");
+    }
 }

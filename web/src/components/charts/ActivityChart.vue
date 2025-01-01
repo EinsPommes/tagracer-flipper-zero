@@ -50,6 +50,15 @@ export default defineComponent({
           plugins: {
             legend: {
               display: false
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              backgroundColor: CHART_COLORS.background,
+              titleColor: CHART_COLORS.text,
+              bodyColor: CHART_COLORS.text,
+              borderColor: CHART_COLORS.border,
+              borderWidth: 1
             }
           },
           scales: {
@@ -59,7 +68,10 @@ export default defineComponent({
                 color: CHART_COLORS.background + '20'
               },
               ticks: {
-                color: CHART_COLORS.text
+                color: CHART_COLORS.text,
+                font: {
+                  family: "'Inter', sans-serif"
+                }
               }
             },
             x: {
@@ -67,23 +79,40 @@ export default defineComponent({
                 display: false
               },
               ticks: {
-                color: CHART_COLORS.text
+                color: CHART_COLORS.text,
+                font: {
+                  family: "'Inter', sans-serif"
+                },
+                maxRotation: 45,
+                minRotation: 45
               }
             }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          },
+          animation: {
+            duration: 750,
+            easing: 'easeInOutQuart'
           }
         }
       })
+    },
+    
+    updateChart() {
+      if(this.chart) {
+        this.chart.data.labels = this.data.map(d => d.time)
+        this.chart.data.datasets[0].data = this.data.map(d => d.scans)
+        this.chart.update('none')
+      }
     }
   },
   
   watch: {
     data: {
       handler() {
-        if (this.chart) {
-          this.chart.data.labels = this.data.map(d => d.time)
-          this.chart.data.datasets[0].data = this.data.map(d => d.scans)
-          this.chart.update()
-        }
+        this.updateChart()
       },
       deep: true
     }
@@ -94,7 +123,7 @@ export default defineComponent({
   },
   
   beforeUnmount() {
-    if (this.chart) {
+    if(this.chart) {
       this.chart.destroy()
     }
   }

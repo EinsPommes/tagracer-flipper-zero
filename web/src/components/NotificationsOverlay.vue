@@ -1,47 +1,74 @@
 <template>
-  <div class="fixed bottom-0 right-0 m-6 space-y-4">
+  <div 
+    class="fixed top-0 right-0 p-4 space-y-4 z-50 max-w-md w-full"
+    :class="{ 'pointer-events-none': notifications.length === 0 }"
+  >
     <transition-group name="notification">
       <div
         v-for="notification in notifications"
         :key="notification.id"
-        class="bg-gray-800 rounded-lg shadow-lg p-4 max-w-sm"
+        class="bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-4 transform transition-all duration-300"
         :class="{
-          'border-l-4 border-green-500': notification.type === 'success',
-          'border-l-4 border-red-500': notification.type === 'error',
-          'border-l-4 border-blue-500': notification.type === 'info'
+          'border-green-500': notification.type === 'success',
+          'border-red-500': notification.type === 'error',
+          'border-yellow-500': notification.type === 'warning',
+          'border-blue-500': notification.type === 'info'
         }"
       >
         <div class="flex items-start">
+          <!-- Icon -->
           <div class="flex-shrink-0">
-            <CheckCircleIcon
-              v-if="notification.type === 'success'"
-              class="h-6 w-6 text-green-500"
-            />
-            <ExclamationCircleIcon
-              v-if="notification.type === 'error'"
-              class="h-6 w-6 text-red-500"
-            />
-            <InformationCircleIcon
-              v-if="notification.type === 'info'"
-              class="h-6 w-6 text-blue-500"
-            />
-          </div>
-          <div class="ml-3 w-0 flex-1">
-            <p class="text-sm font-medium text-white">
-              {{ notification.title }}
-            </p>
-            <p class="mt-1 text-sm text-gray-300">
-              {{ notification.message }}
-            </p>
-          </div>
-          <div class="ml-4 flex-shrink-0 flex">
-            <button
-              @click="removeNotification(notification.id)"
-              class="rounded-md inline-flex text-gray-400 hover:text-gray-300 focus:outline-none"
+            <div 
+              class="w-8 h-8 rounded-full flex items-center justify-center"
+              :class="{
+                'bg-green-500': notification.type === 'success',
+                'bg-red-500': notification.type === 'error',
+                'bg-yellow-500': notification.type === 'warning',
+                'bg-blue-500': notification.type === 'info'
+              }"
             >
-              <XIcon class="h-5 w-5" />
-            </button>
+              <i 
+                class="text-white text-xl"
+                :class="{
+                  'fas fa-check': notification.type === 'success',
+                  'fas fa-times': notification.type === 'error',
+                  'fas fa-exclamation': notification.type === 'warning',
+                  'fas fa-info': notification.type === 'info'
+                }"
+              ></i>
+            </div>
           </div>
+          
+          <!-- Content -->
+          <div class="ml-3 w-full">
+            <h3 class="text-white font-medium">{{ notification.title }}</h3>
+            <p class="mt-1 text-gray-300">{{ notification.message }}</p>
+            
+            <!-- Progress bar -->
+            <div 
+              class="mt-2 w-full bg-gray-700 rounded-full h-1 overflow-hidden"
+              v-if="notification.duration > 0"
+            >
+              <div
+                class="h-full transition-all duration-100"
+                :class="{
+                  'bg-green-500': notification.type === 'success',
+                  'bg-red-500': notification.type === 'error',
+                  'bg-yellow-500': notification.type === 'warning',
+                  'bg-blue-500': notification.type === 'info'
+                }"
+                :style="{ width: `${notification.progress}%` }"
+              ></div>
+            </div>
+          </div>
+          
+          <!-- Close button -->
+          <button
+            @click="removeNotification(notification.id)"
+            class="ml-4 text-gray-400 hover:text-white transition-colors"
+          >
+            <i class="fas fa-times"></i>
+          </button>
         </div>
       </div>
     </transition-group>
@@ -50,49 +77,17 @@
 
 <script>
 import { defineComponent } from 'vue'
-import {
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  InformationCircleIcon,
-  XIcon
-} from '@heroicons/vue/solid'
+import { mapState, mapActions } from 'vuex'
 
 export default defineComponent({
   name: 'NotificationsOverlay',
   
-  components: {
-    CheckCircleIcon,
-    ExclamationCircleIcon,
-    InformationCircleIcon,
-    XIcon
-  },
-  
-  data() {
-    return {
-      notifications: []
-    }
+  computed: {
+    ...mapState('notifications', ['notifications'])
   },
   
   methods: {
-    addNotification(notification) {
-      const id = Date.now()
-      this.notifications.push({
-        id,
-        ...notification
-      })
-      
-      // Automatisch nach 5 Sekunden entfernen
-      setTimeout(() => {
-        this.removeNotification(id)
-      }, 5000)
-    },
-    
-    removeNotification(id) {
-      const index = this.notifications.findIndex(n => n.id === id)
-      if (index !== -1) {
-        this.notifications.splice(index, 1)
-      }
-    }
+    ...mapActions('notifications', ['removeNotification'])
   }
 })
 </script>
@@ -100,7 +95,7 @@ export default defineComponent({
 <style scoped>
 .notification-enter-active,
 .notification-leave-active {
-  transition: all 0.4s ease;
+  transition: all 0.3s ease;
 }
 
 .notification-enter-from {

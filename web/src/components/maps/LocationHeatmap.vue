@@ -25,26 +25,35 @@ export default defineComponent({
   data() {
     return {
       map: null,
-      heatLayer: null
+      heatLayer: null,
+      tileLayer: null
     }
   },
   
   methods: {
     initMap() {
+      // Map initialisieren
       this.map = L.map(this.$refs.map).setView(
         [this.center.lat, this.center.lng],
         13
       )
       
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+      // Dark Mode Tile Layer
+      this.tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors, © CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19
       }).addTo(this.map)
       
+      // Heatmap initialisieren
       this.updateHeatmap()
+      
+      // Responsive handling
+      window.addEventListener('resize', this.handleResize)
     },
     
     updateHeatmap() {
-      if (this.heatLayer) {
+      if(this.heatLayer) {
         this.map.removeLayer(this.heatLayer)
       }
       
@@ -65,6 +74,17 @@ export default defineComponent({
           1.0: '#EF4444'
         }
       }).addTo(this.map)
+    },
+    
+    handleResize() {
+      this.map.invalidateSize()
+    },
+    
+    fitBounds() {
+      if(this.locations.length > 0) {
+        const bounds = L.latLngBounds(this.locations.map(loc => [loc.lat, loc.lng]))
+        this.map.fitBounds(bounds, { padding: [50, 50] })
+      }
     }
   },
   
@@ -72,12 +92,13 @@ export default defineComponent({
     locations: {
       handler() {
         this.updateHeatmap()
+        this.fitBounds()
       },
       deep: true
     },
     center: {
       handler(newCenter) {
-        if (this.map) {
+        if(this.map) {
           this.map.setView([newCenter.lat, newCenter.lng])
         }
       },
@@ -86,11 +107,14 @@ export default defineComponent({
   },
   
   mounted() {
-    this.initMap()
+    this.$nextTick(() => {
+      this.initMap()
+    })
   },
   
   beforeUnmount() {
-    if (this.map) {
+    if(this.map) {
+      window.removeEventListener('resize', this.handleResize)
       this.map.remove()
     }
   }
@@ -100,5 +124,18 @@ export default defineComponent({
 <style>
 .leaflet-container {
   background-color: #1F2937;
+}
+
+.leaflet-tile {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+.leaflet-control-attribution {
+  background-color: rgba(31, 41, 55, 0.8) !important;
+  color: #9CA3AF !important;
+}
+
+.leaflet-control-attribution a {
+  color: #60A5FA !important;
 }
 </style>
