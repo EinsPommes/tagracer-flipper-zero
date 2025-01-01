@@ -121,6 +121,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-Your Name - [@yourusername](https://twitter.com/yourusername)
 
-Project Link: [https://github.com/yourusername/tagracer-flipper-zero](https://github.com/yourusername/tagracer-flipper-zero)
+Project Link: [https://github.com/einspommes/tagracer-flipper-zero](https://github.com/einspommes/tagracer-flipper-zero)
