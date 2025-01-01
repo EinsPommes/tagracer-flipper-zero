@@ -1,0 +1,5 @@
+pyserial==3.5
+aiohttp==3.8.1
+websockets==10.1
+asyncio==3.4.3
+logging==0.5.1.2
